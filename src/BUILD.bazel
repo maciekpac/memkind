@@ -1,0 +1,29 @@
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "srcs",
+    srcs = [
+        "hbwmalloc.c",
+        "heap_manager.c",
+        "memkind-auto-dax-kmem-nodes.c",
+        "memkind-hbw-nodes.c",
+        "memkind.c",
+        "memkind_arena.c",
+        "memkind_bitmask.c",
+        "memkind_capacity.c",
+        "memkind_dax_kmem.c",
+        "memkind_default.c",
+        "memkind_fixed.c",
+        "memkind_gbtlb.c",
+        "memkind_hbw.c",
+        "memkind_hugetlb.c",
+        "memkind_interleave.c",
+        "memkind_local.c",
+        "memkind_log.c",
+        "memkind_mem_attributes.c",
+        "memkind_memtier.c",
+        "memkind_pmem.c",
+        "memkind_regular.c",
+        "tbb_wrapper.c",
+    ],
+)
