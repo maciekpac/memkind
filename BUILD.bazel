@@ -1,4 +1,4 @@
-load("@rules_foreign_cc//foreign_cc:defs.bzl", "make")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -6,14 +6,22 @@ licenses(["restricted"])  # GNU General Public License ("GPL") version 2
 
 filegroup(
   name = "all_files",
-  srcs = [
-     "//src:srcs",
-     "Makefile",
-  ],
+#  srcs = [
+#     "//src:srcs",
+#     "autogen.sh",
+#    "//:**"
+#  ],
+    #srcs = glob(["**"]),
+    srcs = glob([
+        "src/*",
+    ]),
 )
 
-make(
+configure_make(
     name = "memkind",
     lib_source = "//:all_files",
     out_static_libs = ["memkind.a"],
+    autogen = True,
+    configure_in_place = True,
+    configure_options = ["-q"],
 )
