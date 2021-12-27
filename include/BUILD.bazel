@@ -1,0 +1,15 @@
+filegroup(
+    name = "export_headers",
+    srcs = glob(
+        include=["*.h"],
+    ),
+    visibility = ["//:__subpackages__"],
+)
+
+filegroup(
+    name = "internal_headers",
+    srcs = glob(
+        include=["memkind/internal/*.h"],
+    ),
+    visibility = ["//:__subpackages__"],
+)

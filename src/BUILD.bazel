@@ -1,0 +1,22 @@
+
+filegroup(
+    name = "sources",
+    srcs = glob(
+        include=["*.c"],
+    ),
+    visibility = [
+        "//:__subpackages__",
+        #"//:**",
+    ],
+)
+
+filegroup(
+    name = "conf_input",
+    srcs = glob(
+        include=["Makefile.mk"],
+    ),
+    visibility = [
+        "//:__subpackages__",
+        #"//:**",
+    ],
+)

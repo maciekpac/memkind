@@ -1,0 +1,64 @@
+
+
+# TODO aggregate sources and internal headers
+# TODO publish headers
+
+
+filegroup(
+    name = "m4",
+    srcs = glob(
+        include=[
+            "m4/*"
+        ],
+    ),
+)
+
+genrule(
+    name = "autogen_configure",
+    srcs = [
+        "//:m4",
+        "autogen.sh",
+        "config.h.in",
+        "configure.ac",
+        "Makefile.am",
+        "autohbw/Makefile.mk",
+        "test/Makefile.mk",
+        "examples/Makefile.mk",
+        "//src:conf_input",
+        "tiering/Makefile.mk",
+        "utils/memory_matrix/Makefile.mk",
+        "utils/memtier_counter_bench/Makefile.mk",
+        "memkind.pc.in",
+        "memkind.spec.mk",
+        #"",
+        #"",
+    ],
+    outs = [ "config.h" ],
+    cmd = "./autogen.sh ; ./configure ; mv config.h $@",
+)
+
+filegroup(
+    name = "generated",
+    srcs = [ "config.h" ],
+)
+
+
+cc_library(
+    name = "memkind",
+    srcs = [
+        "//src:sources",
+        "//include:internal_headers",
+        "//include:export_headers",
+        "//:generated",
+    ],
+    includes = [
+        "include"
+    ],
+    #deps = [ "//:autogen_configure" ],
+    #srcs = glob(
+        #include=[
+            #"src/*.c",
+            #"include/memkind/internal/*.h",
+        #],
+    #)
+)
