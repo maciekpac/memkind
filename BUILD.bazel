@@ -33,8 +33,12 @@ genrule(
         #"",
         #"",
     ],
+    #outs = [ "config.h", "config.log" ],
     outs = [ "config.h" ],
-    cmd = "./autogen.sh ; ./configure ; mv config.h $@",
+    #cmd = "./autogen.sh ; ./configure ; cp config.h config.log $@",
+    # remove config.log : conflict with jemalloc TODO investigate
+    cmd = "./autogen.sh ; ./configure ; rm config.log ; cp config.h $@",
+    #cmd = "./autogen.sh ; ./configure ; make ; mv config.h $@",
 )
 
 filegroup(
@@ -42,6 +46,60 @@ filegroup(
     srcs = [ "config.h" ],
 )
 
+#genrule(
+    #name = "make",
+    #srcs = [
+        #"//src:sources",
+        #"//include:internal_headers",
+        #"//include:export_headers",
+        #"//:generated",
+    #],
+    #outs = [ "libmemkind.a" ],
+    #cmd = "./autogen.sh ; ./configure ; mv config.h $@",
+    #cmd = "make ; mv src/.libs/libmemkind.a $@",
+#)
+
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "configure_make")
+
+filegroup(
+    name = "jemalloc_srcs",
+    srcs = glob(
+        include=["jemalloc/**"],
+    ),
+    #visibility = ["//:__subpackages__"],
+)
+
+# this compilation goes fine, but for some strange reason it is performed
+# in separate sandbox from other targets and the outputs are not visible ...
+configure_make(
+    name = "jemalloc",
+    lib_source = "//:jemalloc_srcs",
+    configure_in_place = True,
+    autogen = True,
+    #out_include_dir = "include",
+    out_static_libs = [
+        "libjemalloc.a"
+        #"//:jemalloc_outs"
+    ],
+=)
+
+filegroup(
+    name = "jemalloc_outs",
+    srcs = [
+        #"jemalloc/jemalloc_defs.h",
+        #"//:jemalloc/include/jemalloc/jemalloc.h",
+        #"@jemalloc//:include/jemalloc/jemalloc.h",
+        #"jemalloc/jemalloc_macros.h",
+        #"jemalloc/jemalloc_mangle.h",
+        #"jemalloc/jemalloc_mangle_jet.h",
+        #"jemalloc/jemalloc_protos.h",
+        #"jemalloc/jemalloc_protos_jet.h",
+        #"jemalloc/jemalloc_rename.h",
+        #"jemalloc/jemalloc_typedefs.h",
+        "libjemalloc.a"
+    ],
+)
 
 cc_library(
     name = "memkind",
@@ -50,11 +108,18 @@ cc_library(
         "//include:internal_headers",
         "//include:export_headers",
         "//:generated",
+        "//:jemalloc_outs" # this dependency does not work automatically
     ],
     includes = [
-        "include"
+        "include",
+        #".", # TODO upgrade, bin/config.h has to be included as ../config
+        "bin",
+        "src",
     ],
-    #deps = [ "//:autogen_configure" ],
+    local_defines = [ "JE_PREFIX=jemk_" ],
+    # TODO can it be automatically inferred?
+    # currently, the explicit deps are necessary
+    deps = [ "//:jemalloc" ],
     #srcs = glob(
         #include=[
             #"src/*.c",
