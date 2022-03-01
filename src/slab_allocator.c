@@ -30,31 +30,19 @@
 
 // -------- static functions --------------------------------------------------
 
-static freelist_node_meta_t *slab_alloc_addr_to_node_meta_(void *addr)
-{
-    assert(addr && "NULL passed to a function that does not accept NULL");
-    return (freelist_node_meta_t *)(((uint8_t *)addr) -
-                                    sizeof(freelist_node_meta_t));
-}
+// static freelist_node_meta_t *slab_alloc_addr_to_node_meta_(void *addr)
+// {
+//     assert(addr && "NULL passed to a function that does not accept NULL");
+//     return (freelist_node_meta_t *)(((uint8_t *)addr));
+// }
 
 static void *slab_alloc_node_meta_to_addr_(freelist_node_meta_t *meta)
 {
     assert(meta && "NULL passed to a function that does not accept NULL");
-    return (void *)(((uint8_t *)meta) + sizeof(freelist_node_meta_t));
+    return (void *)(((uint8_t *)meta));
 }
 
 #ifdef USE_LOCKLESS
-
-static void slab_alloc_glob_freelist_push_(void *addr)
-{
-    freelist_node_meta_t *meta = slab_alloc_addr_to_node_meta_(addr);
-    SlabAllocator *alloc = meta->allocator;
-    do {
-        meta->next = alloc->globFreelist.freelist;
-    } while (false ==
-             atomic_compare_exchange_weak(&alloc->globFreelist.freelist,
-                                          &meta->next, meta));
-}
 
 static void *slab_alloc_glob_freelist_pop_(SlabAllocator *alloc)
 {
@@ -153,7 +141,7 @@ MEMKIND_EXPORT int slab_allocator_init(SlabAllocator *alloc,
                                        size_t element_size, size_t max_elements)
 {
     // TODO handle failure gracefully instead of die - in biary_alloc
-    alloc->elementSize = sizeof(freelist_node_meta_t) + element_size;
+    alloc->elementSize = element_size;
     size_t max_elements_size = max_elements * alloc->elementSize;
     bigary_init(&alloc->mappedMemory, BIGARY_DRAM, max_elements_size);
     alloc->used = 0u;
@@ -173,7 +161,7 @@ MEMKIND_EXPORT void slab_allocator_destroy(SlabAllocator *alloc)
 
 MEMKIND_EXPORT void *slab_allocator_malloc(SlabAllocator *alloc)
 {
-    void *ret = slab_alloc_glob_freelist_pop_(alloc);
+    void *ret = NULL; // slab_alloc_glob_freelist_pop_(alloc);
     if (!ret) {
         freelist_node_meta_t *meta = slab_alloc_create_meta_(alloc);
         if (meta) // defensive programming
@@ -198,6 +186,6 @@ MEMKIND_EXPORT void *slab_allocator_malloc_pages(SlabAllocator *alloc,
 
 MEMKIND_EXPORT void slab_allocator_free(void *addr)
 {
-    if (addr)
-        slab_alloc_glob_freelist_push_(addr);
+    //     if (addr)
+    //         slab_alloc_glob_freelist_push_(addr);
 }
