@@ -106,7 +106,9 @@ MEMTIER_EXPORT void *malloc(size_t size)
 {
     if (MEMTIER_LIKELY(current_memory)) {
         if (inside_wrappers) {
-            return g_malloc(size);
+            void *ret = g_malloc(size);
+            log_info("g_malloc at %p", ret);
+            return ret;
         }
 
         inside_wrappers = true;
@@ -114,7 +116,9 @@ MEMTIER_EXPORT void *malloc(size_t size)
         inside_wrappers = false;
         return ret;
     } else if (destructed == 0) {
-        return memkind_malloc(MEMKIND_DEFAULT, size);
+        void *ret = memkind_malloc(MEMKIND_DEFAULT, size);
+        log_info("memkind_malloc_default at %p", ret);
+        return ret;
     }
     return NULL;
 }
@@ -123,7 +127,9 @@ MEMTIER_EXPORT void *calloc(size_t num, size_t size)
 {
     if (MEMTIER_LIKELY(current_memory)) {
         if (inside_wrappers) {
-            return g_calloc(num, size);
+            void *ret = g_calloc(num, size);
+            log_info("g_calloc at %p", ret);
+            return ret;
         }
 
         inside_wrappers = true;
@@ -132,7 +138,9 @@ MEMTIER_EXPORT void *calloc(size_t num, size_t size)
 
         return ret;
     } else if (destructed == 0) {
-        return memkind_calloc(MEMKIND_DEFAULT, num, size);
+        void *ret = memkind_calloc(MEMKIND_DEFAULT, num, size);
+        log_info("memkind_calloc_default at %p", ret);
+        return ret;
     }
     return NULL;
 }
@@ -141,7 +149,9 @@ MEMTIER_EXPORT void *realloc(void *ptr, size_t size)
 {
     if (MEMTIER_LIKELY(current_memory)) {
         if (inside_wrappers) {
-            return g_realloc(ptr, size);
+            void *ret = g_realloc(ptr, size);
+            log_info("g_realloc at %p", ret);
+            return ret;
         }
 
         inside_wrappers = true;
@@ -150,7 +160,9 @@ MEMTIER_EXPORT void *realloc(void *ptr, size_t size)
 
         return ret;
     } else if (destructed == 0) {
-        return memkind_realloc(MEMKIND_DEFAULT, ptr, size);
+        void *ret = memkind_realloc(MEMKIND_DEFAULT, ptr, size);
+        log_info("memkind_realloc_default at %p", ret);
+        return ret;
     }
     return NULL;
 }
@@ -173,6 +185,7 @@ MEMTIER_EXPORT void free(void *ptr)
 {
     if (MEMTIER_LIKELY(current_memory)) {
         if (inside_wrappers) {
+            log_info("g_free at %p", ptr);
             return g_free(ptr);
         }
 
@@ -180,6 +193,7 @@ MEMTIER_EXPORT void free(void *ptr)
         memtier_realloc(current_memory, ptr, 0);
         inside_wrappers = false;
     } else if (destructed == 0) {
+        log_info("memkind_free_default at %p", ptr);
         memkind_free(MEMKIND_DEFAULT, ptr);
     }
 }
