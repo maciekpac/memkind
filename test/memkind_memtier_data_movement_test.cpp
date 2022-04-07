@@ -254,14 +254,21 @@ TEST(SlabAlloc, Alignment)
     do {                                                                       \
         struct_bar(size);                                                      \
         FastSlabAllocator temp;                                                \
-        int ret = fast_slab_allocator_init(&temp, size, nof_elements);         \
+        uintptr_t dummy_addr;                                                  \
+        size_t dummy_nof_pages;                                                \
+        int ret = fast_slab_allocator_init_pages(                              \
+            &temp, size, nof_elements, &dummy_addr, &dummy_nof_pages,          \
+            &gStandardMmapCallback);                                           \
         ASSERT_TRUE(ret == 0 && "mutex creation failed!");                     \
         fast_slab_allocator_destroy(&temp);                                    \
-        ret = fast_slab_allocator_init(&temp, size, nof_elements);             \
+        ret = fast_slab_allocator_init_pages(&temp, size, nof_elements,        \
+                                             &dummy_addr, &dummy_nof_pages,    \
+                                             &gStandardMmapCallback);          \
         ASSERT_TRUE(ret == 0 && "mutex creation failed!");                     \
         bar##size *elements[nof_elements];                                     \
         for (size_t i = 0; i < nof_elements; ++i) {                            \
-            elements[i] = (bar##size *)fast_slab_allocator_malloc(&temp);      \
+            elements[i] = (bar##size *)fast_slab_allocator_malloc_pages(       \
+                &temp, &dummy_addr, &dummy_nof_pages, &gStandardMmapCallback); \
             ASSERT_TRUE(elements[i] && "slab returned NULL!");                 \
             memset(elements[i], i, size);                                      \
         }                                                                      \
@@ -276,7 +283,8 @@ TEST(SlabAlloc, Alignment)
         }                                                                      \
         ASSERT_TRUE(temp.used == nof_elements);                                \
         for (size_t i = 0; i < nof_elements; ++i) {                            \
-            elements[i] = (bar##size *)fast_slab_allocator_malloc(&temp);      \
+            elements[i] = (bar##size *)fast_slab_allocator_malloc_pages(       \
+                &temp, &dummy_addr, &dummy_nof_pages, &gStandardMmapCallback); \
             ASSERT_TRUE(elements[i] && "slab returned NULL!");                 \
             memset(elements[i], i + 15, size);                                 \
         }                                                                      \
@@ -298,13 +306,16 @@ TEST(SlabAlloc, Alignment)
         struct_bar_align(size);                                                \
         size_t bar_align_size = sizeof(bar_align##size);                       \
         FastSlabAllocator temp;                                                \
-        int ret =                                                              \
-            fast_slab_allocator_init(&temp, bar_align_size, nof_elements);     \
+        uintptr_t dummy_addr;                                                  \
+        size_t dummy_nof_pages;                                                \
+        int ret = fast_slab_allocator_init_pages(                              \
+            &temp, bar_align_size, nof_elements, &dummy_addr,                  \
+            &dummy_nof_pages, &gStandardMmapCallback);                         \
         ASSERT_TRUE(ret == 0 && "mutex creation failed!");                     \
         bar_align##size *elements[nof_elements];                               \
         for (size_t i = 0; i < nof_elements; ++i) {                            \
-            elements[i] =                                                      \
-                (bar_align##size *)fast_slab_allocator_malloc(&temp);          \
+            elements[i] = (bar_align##size *)fast_slab_allocator_malloc_pages( \
+                &temp, &dummy_addr, &dummy_nof_pages, &gStandardMmapCallback); \
             ASSERT_TRUE(elements[i] && "slab returned NULL!");                 \
             for (size_t j = 0; j < size; ++j)                                  \
                 elements[i]->boo[j] = i * nof_elements + j;                    \
@@ -319,8 +330,8 @@ TEST(SlabAlloc, Alignment)
         }                                                                      \
         ASSERT_TRUE(temp.used == nof_elements);                                \
         for (size_t i = 0; i < nof_elements; ++i) {                            \
-            elements[i] =                                                      \
-                (bar_align##size *)fast_slab_allocator_malloc(&temp);          \
+            elements[i] = (bar_align##size *)fast_slab_allocator_malloc_pages( \
+                &temp, &dummy_addr, &dummy_nof_pages, &gStandardMmapCallback); \
             ASSERT_TRUE(elements[i] && "slab returned NULL!");                 \
             for (size_t j = 0; j < size; ++j)                                  \
                 elements[i]->boo[j] = 7 * i * nof_elements + j + 5;            \
@@ -344,14 +355,21 @@ static void test_fast_slab_allocator_static3(void)
     size_t NOF_ELEMENTS = 1024;
     size_t SIZE = 3;
     FastSlabAllocator temp;
-    int ret = fast_slab_allocator_init(&temp, SIZE, NOF_ELEMENTS);
+    uintptr_t dummy_addr;
+    size_t dummy_nof_pages;
+    int ret = fast_slab_allocator_init_pages(&temp, SIZE, NOF_ELEMENTS,
+                                             &dummy_addr, &dummy_nof_pages,
+                                             &gStandardMmapCallback);
     ASSERT_TRUE(ret == 0 && "slab alloc init failed!");
     fast_slab_allocator_destroy(&temp);
-    ret = fast_slab_allocator_init(&temp, SIZE, NOF_ELEMENTS);
+    ret = fast_slab_allocator_init_pages(&temp, SIZE, NOF_ELEMENTS, &dummy_addr,
+                                         &dummy_nof_pages,
+                                         &gStandardMmapCallback);
     ASSERT_TRUE(ret == 0 && "slab alloc init failed!");
     bar3 *elements[NOF_ELEMENTS];
     for (size_t i = 0; i < NOF_ELEMENTS; ++i) {
-        elements[i] = (bar3 *)fast_slab_allocator_malloc(&temp);
+        elements[i] = (bar3 *)fast_slab_allocator_malloc_pages(
+            &temp, &dummy_addr, &dummy_nof_pages, &gStandardMmapCallback);
         ASSERT_TRUE(elements[i] && "slab returned NULL!");
         memset(elements[i], i, SIZE);
     }
@@ -365,7 +383,8 @@ static void test_fast_slab_allocator_static3(void)
     }
     ASSERT_TRUE(temp.used == NOF_ELEMENTS);
     for (size_t i = 0; i < NOF_ELEMENTS; ++i) {
-        elements[i] = (bar3 *)fast_slab_allocator_malloc(&temp);
+        elements[i] = (bar3 *)fast_slab_allocator_malloc_pages(
+            &temp, &dummy_addr, &dummy_nof_pages, &gStandardMmapCallback);
         ASSERT_TRUE(elements[i] && "slab returned NULL!");
         memset(elements[i], i + 15, SIZE);
     }

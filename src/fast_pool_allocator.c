@@ -22,6 +22,18 @@
                               __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
 #endif
 
+// -------- private functions -------------------------------------------------
+
+static void fast_pool_allocator_register_pages(FastPoolAllocator *pool,
+                                               FastSlabAllocator *slab,
+                                               uintptr_t page_start,
+                                               size_t nof_pages)
+{
+    for (size_t i = 0ul; i < nof_pages; ++i, page_start += TRACED_PAGESIZE) {
+        fast_slab_tracker_register(pool->tracker, page_start, slab);
+    }
+}
+
 // -------- public functions --------------------------------------------------
 
 // TODO in the future, reducing code duplication with pool_allocator.h would be
@@ -42,40 +54,37 @@ fast_pool_allocator_malloc_pages(FastPoolAllocator *pool, size_t size,
     size_t mmap_idx = 0ul;
     if (!slab) {
         FastSlabAllocator *null_slab = slab;
-        // TODO initialize the slab in a lockless way
-        slab = fast_slab_allocator_malloc(&pool->slabSlabAllocator);
+        // allocated slab is managed internally, no need to track the pages
+        size_t dummy_size = 0ul;
+        uintptr_t dummy_address = 0ul;
+        slab = fast_slab_allocator_malloc_pages(&pool->slabSlabAllocator,
+                                                &dummy_address, &dummy_size,
+                                                &gStandardMmapCallback);
         size_t slab_size = rank_size_to_size(size_rank);
         nof_pages[mmap_idx] = 0ul;
         int ret1 = fast_slab_allocator_init_pages(
             slab, slab_size, 0, &address[mmap_idx], &nof_pages[mmap_idx],
             user_mmap);
-        ++mmap_idx;
         if (ret1 != 0)
             return NULL;
-        // TODO atomic compare exchange WARNING HACK NOT THREAD SAFE NOW !!!!
         bool exchanged =
             atomic_compare_exchange_strong(&pool->pool[hash], &null_slab, slab);
         if (exchanged) {
-            uintptr_t page_start = *address;
-            for (size_t i = 0ul; i < *nof_pages;
-                 ++i, page_start += TRACED_PAGESIZE)
-                fast_slab_tracker_register(pool->tracker, page_start, slab);
+            fast_pool_allocator_register_pages(pool, slab, address[mmap_idx],
+                                               nof_pages[mmap_idx]);
+            ++mmap_idx;
         } else {
             fast_slab_allocator_destroy(slab);
             slab = atomic_load(&pool->pool[hash]);
         }
     }
 
-    uintptr_t page_start = 0ul;
     nof_pages[mmap_idx] = 0ul;
     ret = fast_slab_allocator_malloc_pages(slab, &address[mmap_idx],
                                            &nof_pages[mmap_idx], user_mmap);
 
-    page_start = *address;
-
-    for (size_t i = 0ul; i < *nof_pages; ++i, page_start += TRACED_PAGESIZE) {
-        fast_slab_tracker_register(pool->tracker, page_start, slab);
-    }
+    fast_pool_allocator_register_pages(pool, slab, address[mmap_idx],
+                                       nof_pages[mmap_idx]);
 
     return ret;
 }
@@ -143,12 +152,16 @@ MEMKIND_EXPORT int fast_pool_allocator_create(FastPoolAllocator *pool,
                                               size_t *nof_pages,
                                               const MmapCallback *user_mmap)
 {
+    *addr = 0ul;
+    *nof_pages = 0ul;
     int ret = fast_slab_allocator_init_pages(
         &pool->slabSlabAllocator, sizeof(FastSlabAllocator), UINT16_MAX, addr,
         nof_pages, user_mmap);
     if (ret == 0)
         (void)memset(pool->pool, 0, sizeof(pool->pool));
     fast_slab_tracker_create(&pool->tracker);
+    fast_pool_allocator_register_pages(pool, &pool->slabSlabAllocator, *addr,
+                                       *nof_pages);
 
     return ret;
 }

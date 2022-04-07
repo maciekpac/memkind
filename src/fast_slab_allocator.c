@@ -81,35 +81,7 @@ static void *fast_slab_alloc_malloc_pages_(FastSlabAllocator *alloc,
     return ((uint8_t *)alloc->mappedMemory.area) + offset;
 }
 
-static void *fast_slab_alloc_malloc_(FastSlabAllocator *alloc)
-{
-    size_t free_idx = slab_alloc_fetch_increment_used_(alloc);
-    size_t offset = alloc->elementSize * free_idx;
-
-    // TODO handle failure gracefully instead of die - in biary_alloc
-    bigary_alloc(&alloc->mappedMemory, (free_idx + 1) * alloc->elementSize);
-
-    return ((uint8_t *)alloc->mappedMemory.area) + offset;
-}
-
 // -------- public functions --------------------------------------------------
-
-MEMKIND_EXPORT int fast_slab_allocator_init(FastSlabAllocator *alloc,
-                                            size_t element_size,
-                                            size_t max_elements)
-{
-    // TODO handle failure gracefully instead of die - in biary_alloc
-    alloc->elementSize = element_size;
-    size_t max_elements_size = max_elements * alloc->elementSize;
-    bigary_init(&alloc->mappedMemory, BIGARY_DRAM, max_elements_size);
-    alloc->used = 0u;
-
-    int ret = slab_allocator_init(&alloc->freelistNodeAllocator,
-                                  sizeof(FastSlabAllocatorFreelistNode), 0);
-    alloc->freeList = NULL;
-
-    return ret;
-}
 
 MEMKIND_EXPORT int
 fast_slab_allocator_init_pages(FastSlabAllocator *alloc, size_t element_size,
@@ -134,16 +106,6 @@ MEMKIND_EXPORT void fast_slab_allocator_destroy(FastSlabAllocator *alloc)
 {
     bigary_destroy(&alloc->mappedMemory);
     slab_allocator_destroy(&alloc->freelistNodeAllocator);
-}
-
-MEMKIND_EXPORT void *fast_slab_allocator_malloc(FastSlabAllocator *alloc)
-{
-    void *ret = fast_slab_alloc_glob_freelist_pop_(alloc);
-    if (!ret) {
-        ret = fast_slab_alloc_malloc_(alloc);
-    }
-
-    return ret;
 }
 
 MEMKIND_EXPORT void *
