@@ -104,3 +104,10 @@ MEMKIND_EXPORT size_t ranking_get_total_size(ranking_handle handle)
 {
     return static_cast<Ranking *>(handle)->GetTotalSize();
 }
+
+MEMKIND_EXPORT void
+ranking_iterate_addresses(ranking_handle handle,
+                          ranking_address_iterator_callback cb)
+{
+    return static_cast<Ranking *>(handle)->IterateAddresses(cb);
+}

@@ -13,6 +13,7 @@ extern "C" {
 
 typedef void *ranking_handle;
 typedef void *metadata_handle;
+typedef void(ranking_address_iterator_callback)(uintptr_t addr);
 
 extern void ranking_create(ranking_handle *handle);
 extern void ranking_destroy(ranking_handle handle);
@@ -43,6 +44,8 @@ extern void ranking_add_page(ranking_handle handle, metadata_handle page);
 extern uintptr_t ranking_get_page_address(metadata_handle page);
 /// @return traced size, in bytes
 extern size_t ranking_get_total_size(ranking_handle handle);
+extern void ranking_iterate_addresses(ranking_handle handle,
+                                      ranking_address_iterator_callback cb);
 
 #ifdef __cplusplus
 }

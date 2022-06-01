@@ -13,6 +13,7 @@
 #include "assert.h"
 #include "stdint.h"
 #include "string.h"
+#include <stdint.h>
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
@@ -24,6 +25,13 @@
 
 // with 4kB traced page, 512kB per cycle
 #define MAX_TO_JUGGLE (128ul)
+
+/// unit of the interval: number of cycels, sample values:
+/// 0: disable, 1: perform every cycle, 2: perform every second cycle, etc
+/// sanity check iterates over both rankings
+/// and performs syscall for EVERY traced page,
+/// so this is a costly operation
+#define RANKING_SANITY_CHECK_INTERVAL (0ul)
 
 // static functions -----------------------------------------------------------
 
@@ -194,12 +202,56 @@ static ssize_t mtt_internals_process_queued(MttInternals *internals)
     return dram_pages_added;
 }
 
+void check_dram(uintptr_t address)
+{
+    const size_t SYSTEM_PAGESIZE = traced_pagesize_get_sysytem_pagesize();
+    for (uintptr_t system_page = address;
+         system_page < address + TRACED_PAGESIZE;
+         system_page += SYSTEM_PAGESIZE) {
+        memory_type_t memory_type = get_page_memory_type(system_page);
+        if (memory_type != DRAM) {
+            log_err(
+                "Memory type of page 0x%lx is incorrect, expected DRAM, found: %d",
+                system_page, memory_type);
+        }
+    }
+}
+
+void check_dax_kmem(uintptr_t address)
+{
+    const size_t SYSTEM_PAGESIZE = traced_pagesize_get_sysytem_pagesize();
+    for (uintptr_t system_page = address;
+         system_page < address + TRACED_PAGESIZE;
+         system_page += SYSTEM_PAGESIZE) {
+        memory_type_t memory_type = get_page_memory_type(system_page);
+        if (memory_type != DAX_KMEM) {
+            log_err(
+                "Memory type of page 0x%lx is incorrect, expected DAX_KMEM, found: %d",
+                system_page, memory_type);
+        }
+    }
+}
+
+void mtt_internals_check_ranking_consistency(MttInternals *internals)
+{
+    static size_t it = 0ul;
+    // this handling should never call ranking_iterate_addresses
+    // if RANKING_SANITY_CHECK_INTERVAL is 0
+    if (++it >= RANKING_SANITY_CHECK_INTERVAL) {
+        it = 0;
+        if (it == RANKING_SANITY_CHECK_INTERVAL) {
+            ranking_iterate_addresses(internals->dramRanking, check_dram);
+            ranking_iterate_addresses(internals->pmemRanking, check_dax_kmem);
+        }
+    }
+}
+
 // global functions -----------------------------------------------------------
 
-MEMKIND_EXPORT int mtt_internals_create(MttInternals *internals,
-                                        uint64_t timestamp,
-                                        const MTTInternalsLimits *limits,
-                                        MmapCallback *user_mmap)
+MEMKIND_EXPORT
+int mtt_internals_create(MttInternals *internals, uint64_t timestamp,
+                         const MTTInternalsLimits *limits,
+                         MmapCallback *user_mmap)
 {
     // TODO think about default limits value
     internals->usedDram = 0ul;
@@ -331,6 +383,8 @@ MEMKIND_EXPORT void mtt_internals_ranking_update(MttInternals *internals,
         return;
     // 4. Handle hottest on PMEM vs coldest on dram page movement
     mtt_internals_tiers_juggle(internals, interrupt);
+    // 5. Check consistency
+    mtt_internals_check_ranking_consistency(internals);
 }
 
 MEMKIND_EXPORT void

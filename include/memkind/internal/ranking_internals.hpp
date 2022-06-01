@@ -12,6 +12,8 @@
 
 // defines --------------------------------------------------------------------
 
+typedef void(ranking_address_iterator_callback)(uintptr_t addr);
+
 /// touch value: its significance is limited to preventing buffer overflow
 #define HOTNESS_TOUCH_SINGLE_VALUE 1.0
 
@@ -147,4 +149,5 @@ public:
     PageMetadata PopHottest();
     /// @return traced size, in bytes
     size_t GetTotalSize();
+    void IterateAddresses(ranking_address_iterator_callback cb);
 };

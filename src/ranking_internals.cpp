@@ -483,3 +483,12 @@ MEMKIND_EXPORT size_t Ranking::GetTotalSize()
 {
     return this->totalSize;
 }
+
+void Ranking::IterateAddresses(ranking_address_iterator_callback cb)
+{
+    assert(cb && "callback cannot be null!");
+    for (auto &addr_page_pair : this->pageAddrToPage) {
+        uintptr_t address = addr_page_pair.first;
+        cb(address);
+    }
+}

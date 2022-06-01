@@ -10,6 +10,7 @@ static bool is_pow2(size_t val)
 
 size_t traced_pagesize_get_sysytem_pagesize(void)
 {
+    // TODO cache the value to increase performance
     return sysconf(_SC_PAGESIZE);
 }
 
