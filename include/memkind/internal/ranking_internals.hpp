@@ -48,8 +48,37 @@ static const double
         1.00000000e+0, 9.53899645e-02, 9.49597036e-03, 9.49169617e-04};
 
 // type declarations ----------------------------------------------------------
+class PageMetadata;
 
-// class HotnessTest; // forward declaration of test class
+// TODO refactor this somehow, perhaps using templates or sth
+
+class RankingHottestIterator
+{
+    bool valid;
+    std::map<double, std::set<PageMetadata *>> *outerMap;
+    std::map<double, std::set<PageMetadata *>>::reverse_iterator outerIterator;
+    std::set<PageMetadata *>::iterator innerIterator;
+
+public:
+    bool Create(std::map<double, std::set<PageMetadata *>> &hotness_set);
+    bool Advance();
+    uintptr_t GetAddress();
+    double GetHotness();
+};
+
+class RankingColdestIterator
+{
+    bool valid;
+    std::map<double, std::set<PageMetadata *>> *outerMap;
+    std::map<double, std::set<PageMetadata *>>::iterator outerIterator;
+    std::set<PageMetadata *>::iterator innerIterator;
+
+public:
+    bool Create(std::map<double, std::set<PageMetadata *>> &hotness_set);
+    bool Advance();
+    uintptr_t GetAddress();
+    double GetHotness();
+};
 
 class HotnessCoeff
 {
@@ -72,7 +101,7 @@ public:
     SlimHotnessCoeff(double init_hotness);
     void Update(double hotness_to_add, double timediff,
                 double exponential_coeff, double compensation_coeff);
-    double Get();
+    double Get() const;
 };
 
 class Hotness
@@ -84,7 +113,7 @@ public:
     Hotness(double init_hotness, uint64_t init_timestamp);
     Hotness(Hotness *hotness_source, uint64_t init_timestamp);
     void Update(double hotness_to_add, uint64_t timestamp);
-    double GetTotalHotness();
+    double GetTotalHotness() const;
     uint64_t GetLastTouchTimestamp() const;
     friend class HotnessTest;
 };
@@ -108,13 +137,15 @@ public:
     /// @return true if first touch since last update
     bool TouchEmpty();
     void UpdateHotness(uint64_t timestamp);
-    double GetHotness();
-    uintptr_t GetStartAddr();
+    double GetHotness() const;
+    uintptr_t GetStartAddr() const;
     uint64_t GetLastTouchTimestamp() const;
 };
 
 class Ranking
 {
+    RankingHottestIterator hottestIterator_;
+    RankingColdestIterator coldestIterator_;
     std::map<double, std::set<PageMetadata *>> hotnessToPages;
     std::map<uint64_t, std::set<PageMetadata *>> leastRecentlyUsed;
     std::unordered_map<uintptr_t, PageMetadata> pageAddrToPage;
@@ -145,6 +176,15 @@ public:
     bool GetColdest(double &hotness);
     PageMetadata PopColdest();
     PageMetadata PopHottest();
+    PageMetadata PopAddress(uintptr_t address);
+    /// @return valid iterator on success, nullptr on failure
+    /// @warning returned iterator is only valid until next Ranking function is
+    /// called - calling any Ranking function invalidates the iterator!
+    RankingHottestIterator *GetHottestIterator();
+    /// @return valid iterator on success, nullptr on failure
+    /// @warning returned iterator is only valid until next Ranking function is
+    /// called - calling any Ranking function invalidates the iterator!
+    RankingColdestIterator *GetColdestIterator();
     /// @return traced size, in bytes
     size_t GetTotalSize();
 };

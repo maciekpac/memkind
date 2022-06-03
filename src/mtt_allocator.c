@@ -60,6 +60,13 @@ static void background_thread_stop(MTTAllocator *mtt_allocator);
 
 // static function definitions ------------------------------------------------
 
+static void prefault(void* addr, size_t len) {
+//    for (uint8_t *page = (uint8_t*)addr; page<((uint8_t*)addr)+len; page += TRACED_PAGESIZE) {
+//        *page = 0;
+//    }
+     
+}
+
 /// @brief Wrapper for mmap with PMEM/DRAM balancing
 ///
 /// @note At the function exit, we should have at most hardLimit data in DRAM
@@ -67,8 +74,11 @@ static void *mtt_allocator_mmap_cb_wrapper(void *arg, void *addr, size_t len,
                                            int prot, int flags, int fd,
                                            __off_t offset)
 {
-    return mtt_allocator_mmap((MTTAllocator *)arg, addr, len, prot, flags, fd,
+    void * ret =
+    mtt_allocator_mmap((MTTAllocator *)arg, addr, len, prot, flags, fd,
                               offset);
+   prefault(arg, len);
+   return ret;
 }
 
 /// @brief Wrapper for munmap with PMEM/DRAM balancing
@@ -98,6 +108,7 @@ static void *mtt_allocator_mmap_init_once(void *arg, void *addr, size_t len,
     assert(len < allocator->internals.limits.hardLimit &&
            "Balancing not available at init time, increase hard limit!");
     void *ret = mmap(addr, len, prot, flags, fd, offset);
+    prefault(ret, len);
     if (ret) // TODO make sure nothing is broken during final refactoring!
         mtt_internals_tracing_multithreaded_push(
             &allocator->internals, (uintptr_t)ret, len / TRACED_PAGESIZE,

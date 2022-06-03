@@ -104,3 +104,61 @@ MEMKIND_EXPORT size_t ranking_get_total_size(ranking_handle handle)
 {
     return static_cast<Ranking *>(handle)->GetTotalSize();
 }
+
+MEMKIND_EXPORT bool
+ranking_get_hottest_iterator(ranking_handle handle,
+                             ranking_hottest_iterator *iterator)
+{
+    auto citerator = reinterpret_cast<RankingHottestIterator **>(iterator);
+    *citerator = static_cast<Ranking *>(handle)->GetHottestIterator();
+    return *citerator != nullptr;
+}
+MEMKIND_EXPORT bool
+ranking_hottest_iterator_advance(ranking_hottest_iterator iterator)
+{
+    return static_cast<RankingHottestIterator *>(iterator)->Advance();
+}
+
+uintptr_t ranking_hottest_iterator_get_address(ranking_hottest_iterator iterator)
+{
+    return static_cast<RankingHottestIterator *>(iterator)->GetAddress();
+}
+
+double ranking_hottest_iterator_get_hotness(ranking_hottest_iterator iterator)
+{
+    return static_cast<RankingHottestIterator *>(iterator)->GetHotness();
+}
+
+MEMKIND_EXPORT bool
+ranking_get_coldest_iterator(ranking_handle handle,
+                             ranking_coldest_iterator *iterator)
+{
+    auto citerator = reinterpret_cast<RankingColdestIterator **>(iterator);
+    *citerator = static_cast<Ranking *>(handle)->GetColdestIterator();
+    return *citerator != nullptr;
+}
+
+MEMKIND_EXPORT bool
+ranking_coldest_iterator_advance(ranking_coldest_iterator iterator)
+{
+    return static_cast<RankingColdestIterator *>(iterator)->Advance();
+}
+
+MEMKIND_EXPORT void ranking_pop_address(ranking_handle handle,
+                                        metadata_handle page, uintptr_t address)
+{
+    *static_cast<PageMetadata *>(page) =
+        static_cast<Ranking *>(handle)->PopAddress(address);
+}
+
+uintptr_t ranking_coldest_iterator_get_address(ranking_coldest_iterator iterator)
+{
+    return static_cast<RankingColdestIterator *>(iterator)->GetAddress();
+}
+
+double ranking_coldest_iterator_get_hotness(ranking_coldest_iterator iterator)
+{
+    return static_cast<RankingColdestIterator *>(iterator)->GetHotness();
+}
+
+

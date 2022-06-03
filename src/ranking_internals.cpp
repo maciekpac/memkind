@@ -73,7 +73,7 @@ MEMKIND_EXPORT void SlimHotnessCoeff::Update(double hotness_to_add,
         this->value_ = std::numeric_limits<double>::max();
 }
 
-MEMKIND_EXPORT double SlimHotnessCoeff::Get()
+MEMKIND_EXPORT double SlimHotnessCoeff::Get() const
 {
     return this->value_;
 }
@@ -126,7 +126,7 @@ MEMKIND_EXPORT void Hotness::Update(double hotness_to_add, uint64_t timestamp)
     this->previousTimestamp = timestamp;
 }
 
-MEMKIND_EXPORT double Hotness::GetTotalHotness()
+MEMKIND_EXPORT double Hotness::GetTotalHotness() const
 {
     // TODO check SIMD optimisations
     double ret = 0;
@@ -183,12 +183,12 @@ MEMKIND_EXPORT void PageMetadata::UpdateHotness(uint64_t timestamp)
     this->touched = false;
 }
 
-MEMKIND_EXPORT double PageMetadata::GetHotness()
+MEMKIND_EXPORT double PageMetadata::GetHotness() const
 {
     return this->hotness.GetTotalHotness();
 }
 
-MEMKIND_EXPORT uintptr_t PageMetadata::GetStartAddr()
+MEMKIND_EXPORT uintptr_t PageMetadata::GetStartAddr() const
 {
     return this->startAddr;
 }
@@ -196,6 +196,92 @@ MEMKIND_EXPORT uintptr_t PageMetadata::GetStartAddr()
 MEMKIND_EXPORT uint64_t PageMetadata::GetLastTouchTimestamp() const
 {
     return this->hotness.GetLastTouchTimestamp();
+}
+
+// RankingITerators ---------
+
+bool RankingHottestIterator::Create(
+    std::map<double, std::set<PageMetadata *>> &hotness_set)
+{
+    valid = false;
+    outerMap = &hotness_set;
+    outerIterator = hotness_set.rbegin();
+    if (outerIterator != hotness_set.rend()) {
+        innerIterator = outerIterator->second.begin();
+        if (innerIterator != outerIterator->second.end())
+            valid = true;
+    }
+    return valid;
+}
+
+bool RankingHottestIterator::Advance()
+{
+    if (valid) {
+        ++innerIterator;
+        if (innerIterator == outerIterator->second.end()) {
+            ++outerIterator;
+            if (outerIterator != outerMap->rend()) {
+                innerIterator = outerIterator->second.begin();
+            } else {
+                valid = false;
+            }
+        }
+    }
+    return valid;
+}
+
+uintptr_t RankingHottestIterator::GetAddress()
+{
+    assert(this->valid);
+    return (*this->innerIterator)->GetStartAddr();
+}
+
+double RankingHottestIterator::GetHotness()
+{
+    assert(this->valid);
+    return (*this->innerIterator)->GetHotness();
+}
+
+bool RankingColdestIterator::Create(
+    std::map<double, std::set<PageMetadata *>> &hotness_set)
+{
+    valid = false;
+    outerMap = &hotness_set;
+    outerIterator = hotness_set.begin();
+    if (outerIterator != hotness_set.end()) {
+        innerIterator = outerIterator->second.begin();
+        if (innerIterator != outerIterator->second.end())
+            valid = true;
+    }
+    return valid;
+}
+
+bool RankingColdestIterator::Advance()
+{
+    if (valid) {
+        ++innerIterator;
+        if (innerIterator == outerIterator->second.end()) {
+            ++outerIterator;
+            if (outerIterator != outerMap->end()) {
+                innerIterator = outerIterator->second.begin();
+            } else {
+                valid = false;
+            }
+        }
+    }
+    return valid;
+}
+
+uintptr_t RankingColdestIterator::GetAddress()
+{
+    assert(this->valid);
+    return (*this->innerIterator)->GetStartAddr();
+}
+
+double RankingColdestIterator::GetHotness()
+{
+    assert(this->valid);
+    return (*this->innerIterator)->GetHotness();
 }
 
 // Ranking - private --------
@@ -310,7 +396,9 @@ MEMKIND_EXPORT void Ranking::AddPages(uintptr_t start_addr, size_t nof_pages,
     std::set<PageMetadata *> pages;
     PageMetadata *hotness_source = nullptr;
     auto hottest_it = this->hotnessToPages.rbegin();
+    // if (hottest_it != this->hotnessToPages.rend() && this->hotnessToPages.size()>0) { // TODO second comaprison should be redundant, but is not !!!
     if (hottest_it != this->hotnessToPages.rend()) {
+        assert(this->hotnessToPages.size()>0);
         auto page_meta_it = hottest_it->second.begin();
         assert(page_meta_it != hottest_it->second.end() && "corrupted data");
         hotness_source = *page_meta_it;
@@ -482,4 +570,52 @@ MEMKIND_EXPORT void Ranking::AddPage(PageMetadata page)
 MEMKIND_EXPORT size_t Ranking::GetTotalSize()
 {
     return this->totalSize;
+}
+
+PageMetadata Ranking::PopAddress(uintptr_t address)
+{
+    // TODO
+    auto page_addr_to_page_it = this->pageAddrToPage.find(address);
+    assert(page_addr_to_page_it != this->pageAddrToPage.end() &&
+           "Pop on empty set!");
+    double hotness = page_addr_to_page_it->second.GetHotness();
+    auto hot_set_it = this->hotnessToPages.find(hotness);
+    assert(hot_set_it != this->hotnessToPages.end() && "Pop on empty set!");
+    auto hot_it =
+        std::find_if(hot_set_it->second.begin(), hot_set_it->second.end(),
+                     [address](const PageMetadata *meta) {
+                         return meta->GetStartAddr() == address;
+                     });
+    assert(hot_it != hot_set_it->second.end() &&
+           "Empty set in hotnessToPages!");
+    PageMetadata *page = *hot_it;
+    PageMetadata ret = *page;
+
+    this->RemoveLRU_(page);
+    this->pagesToUpdate.erase(page);
+
+    // remove the page entry from the hotnessToPage map
+    hot_set_it->second.erase(hot_it);
+    if (hot_set_it->second.empty()) {
+        this->hotnessToPages.erase(hot_set_it);
+    }
+    this->pageAddrToPage.erase(page_addr_to_page_it);
+
+    totalSize -= TRACED_PAGESIZE;
+
+    return ret;
+}
+
+// TODO refactor
+// always return the iterator, sometimes just invalid ?
+RankingHottestIterator *Ranking::GetHottestIterator()
+{
+    bool success = this->hottestIterator_.Create(this->hotnessToPages);
+    return success ? &this->hottestIterator_ : nullptr;
+}
+
+RankingColdestIterator *Ranking::GetColdestIterator()
+{
+    bool success = this->coldestIterator_.Create(this->hotnessToPages);
+    return success ? &this->coldestIterator_ : nullptr;
 }

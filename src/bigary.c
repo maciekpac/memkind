@@ -13,7 +13,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#define BIGARY_DEFAULT_MAX (64 * 1024 * 1024 * 1024ULL)
+#define BIGARY_DEFAULT_MAX (128ul * 1024 * 1024 * 1024ULL)
 
 static void die(const char *fmt, ...)
 {
