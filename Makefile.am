@@ -35,7 +35,7 @@ libmemkind_la_SOURCES = src/hbwmalloc.c \
 
 
 libmemkind_la_LIBADD = jemalloc/lib/libjemalloc_pic.a
-libmemkind_la_LDFLAGS = -version-info 0:1:0 -ldl -lrt
+libmemkind_la_LDFLAGS = -version-info 0:1:0 -ldl -lrt -pie
 include_HEADERS = include/hbw_allocator.h \
                   include/hbwmalloc.h \
                   include/memkind.h \
@@ -638,7 +638,7 @@ noinst_PROGRAMS =
 noinst_LTLIBRARIES =
 TESTS =
 
-req_flags = -fvisibility=hidden -Wall -Werror -D_GNU_SOURCE -DJE_PREFIX=@memkind_prefix@ -DMEMTIER_ALLOC_PREFIX=@memtier_prefix@
+req_flags = -fvisibility=hidden -Wall -Werror -Wformat -Wformat-security -D_FORTIFY_SOURCE=2 -fPIE -fPIC -shared -z,relro -z,now -z noexecstack -D_GNU_SOURCE -DJE_PREFIX=@memkind_prefix@ -DMEMTIER_ALLOC_PREFIX=@memtier_prefix@
 
 AM_CFLAGS = $(req_flags)
 AM_CXXFLAGS = $(req_flags)
