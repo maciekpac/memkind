@@ -638,7 +638,7 @@ noinst_PROGRAMS =
 noinst_LTLIBRARIES =
 TESTS =
 
-req_flags = -fvisibility=hidden -Wall -Werror -Wformat -Wformat-security -D_FORTIFY_SOURCE=2 -fPIE -fPIC -shared -z,relro -z,now -z noexecstack -D_GNU_SOURCE -DJE_PREFIX=@memkind_prefix@ -DMEMTIER_ALLOC_PREFIX=@memtier_prefix@
+req_flags = -fvisibility=hidden -Wall -Werror -Wformat -Wformat-security -D_FORTIFY_SOURCE=2 -fPIE -fPIC -shared -z,relro -z,now -z noexecstack -fstack-protector-strong -D_GNU_SOURCE -DJE_PREFIX=@memkind_prefix@ -DMEMTIER_ALLOC_PREFIX=@memtier_prefix@
 
 AM_CFLAGS = $(req_flags)
 AM_CXXFLAGS = $(req_flags)
